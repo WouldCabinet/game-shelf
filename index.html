@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14161c">
+<title>Game Shelf</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='5' width='7' height='22' rx='1.5' fill='%234fc39a'/%3E%3Crect x='12.5' y='5' width='7' height='22' rx='1.5' fill='%23f2b84b'/%3E%3Crect x='22' y='5' width='7' height='22' rx='1.5' fill='%23e8746c'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* View-only copy of a Game Shelf, published for friends. Same look as the app; nothing here can change the shelf. */
+:root {
+  --bg: #eceef3; --surface: #ffffff; --raised: #f6f7fa; --line: #d9dce5; --fg: #171a22; --muted: #5d6475;
+  --done: #1f9a6c; --prog: #c2861a; --todo: #cc4f47; --accent: #3a5bd9;
+  --shadow: 0 1px 2px rgb(20 24 40 / .08), 0 6px 18px rgb(20 24 40 / .08);
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --radius: 10px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161c; --surface: #1c1f27; --raised: #232733; --line: #2e3341; --fg: #eceef4; --muted: #9aa1b3;
+    --done: #4fc39a; --prog: #f2b84b; --todo: #e8746c; --accent: #7d97ff;
+    --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.45 var(--body); display: flex; flex-direction: column; overflow: hidden; padding-top: env(safe-area-inset-top, 0px); }
+button, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+.top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-block: 14px;
+  padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); }
+.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; min-width: 0; }
+.brand svg { flex: none; }
+.brand h1 { font: 800 1.45rem/1.1 var(--display); letter-spacing: -.02em; margin: 0; overflow-wrap: anywhere; }
+.stats { color: var(--muted); font-size: .85rem; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.stats b { color: var(--fg); font: 700 .85rem var(--mono); }
+.stats b.name { font: 600 .85rem var(--body); }
+.updated { display: inline-flex; align-items: center; gap: 6px; }
+.updated::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--done); }
+.filter { position: relative; display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface);
+  border-radius: 8px; padding: 0 0 0 14px; cursor: pointer; }
+.filter:hover { border-color: var(--muted); }
+.filter:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.filter svg { flex: none; width: 16px; height: 16px; color: var(--muted); }
+.filter.on svg { color: var(--accent); }
+.filter select { appearance: none; -webkit-appearance: none; border: 0; background: transparent; cursor: pointer;
+  font-weight: 600; font-size: .9rem; line-height: 1.2; padding: 8px 32px 8px 0; max-width: 12rem; }
+.filter select:focus { outline: none; }
+.filter::after { content: ""; position: absolute; right: 12px; top: 50%; width: 10px; height: 10px; margin-top: -5px; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1 3l4 4 4-4' fill='none' stroke='%23889' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat center / 10px 10px; }
+.filter select option { color: var(--fg); background: var(--surface); }
+
+.tabs { display: none; }
+.board { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;
+  padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); }
+.col { --c: var(--muted); display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.col[data-status="completed"], .tab[data-status="completed"] { --c: var(--done); }
+.col[data-status="progress"], .tab[data-status="progress"] { --c: var(--prog); }
+.col[data-status="incomplete"], .tab[data-status="incomplete"] { --c: var(--todo); }
+.col-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); border-top: 4px solid var(--c); min-height: 52px; }
+.col-head h2 { font: 700 1.05rem/1.2 var(--display); margin: 0; }
+.count { font: 700 .78rem var(--mono); color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); padding: 2px 8px; border-radius: 99px; }
+.col-hours { margin-left: auto; color: var(--muted); font: 500 .78rem var(--mono); }
+.col-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; overscroll-behavior: contain;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); grid-auto-rows: max-content; gap: 14px; align-content: start; }
+.empty { grid-column: 1 / -1; border: 2px dashed var(--line); border-radius: var(--radius); padding: 28px 16px; color: var(--muted); text-align: center; font-size: .9rem; }
+
+.card { position: relative; aspect-ratio: 2 / 3; border-radius: var(--radius); overflow: hidden; background: var(--raised); box-shadow: var(--shadow);
+  border: 0; padding: 0; width: 100%; align-self: start; cursor: pointer; text-align: left; transition: transform .15s ease; }
+.card:hover { transform: translateY(-2px); }
+.card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ph { position: absolute; inset: 0; display: flex; align-items: flex-end; padding: 12px;
+  background: linear-gradient(160deg, hsl(var(--h) 45% 38%), hsl(calc(var(--h) + 40) 50% 18%));
+  color: #fff; font: 800 1.05rem/1.1 var(--display); overflow-wrap: anywhere; }
+.card.with-hours .ph { padding-bottom: 30px; }
+.meta { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 8px 7px; background: linear-gradient(transparent, rgb(8 10 16 / .88)); color: #fff;
+  display: flex; flex-direction: column; gap: 2px; }
+.meta .t { font-weight: 700; font-size: .8rem; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.meta .h { font: 700 .72rem var(--mono); opacity: .9; }
+.card.has-ph .meta .t { display: none; }
+.card.has-ph .meta { background: none; }
+.cbadge { position: absolute; top: 6px; left: 6px; max-width: calc(100% - 12px); z-index: 1; background: rgb(10 12 18 / .78); color: #fff;
+  font: 700 .66rem/1 var(--body); letter-spacing: .03em; padding: 4px 6px; border-radius: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+dialog { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--fg); padding: 0;
+  width: min(440px, calc(100vw - 24px)); box-shadow: 0 30px 80px rgb(0 0 0 / .45); }
+dialog::backdrop { background: rgb(10 12 18 / .6); backdrop-filter: blur(3px); }
+.dlg { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 16px; padding: 18px; align-items: start; }
+.dlg .cover { aspect-ratio: 2/3; border-radius: var(--radius); overflow: hidden; position: relative; background: var(--raised); box-shadow: var(--shadow); }
+.dlg .cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dlg h3 { font: 700 1.2rem/1.2 var(--display); margin: 0 0 10px; overflow-wrap: anywhere; }
+.pill { display: inline-block; font-weight: 700; font-size: .8rem; padding: 3px 10px; border-radius: 99px; color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
+.pill[data-status="completed"] { --c: var(--done); } .pill[data-status="progress"] { --c: var(--prog); } .pill[data-status="incomplete"] { --c: var(--todo); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: .9rem; margin: 12px 0 0; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; font-family: var(--mono); font-weight: 500; }
+.close { position: absolute; top: 10px; right: 10px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; width: 32px; height: 32px; cursor: pointer; }
+.notice { margin: auto; color: var(--muted); text-align: center; padding: 40px 16px; }
+
+@media (max-width: 760px) {
+  .top { gap: 10px; padding-block: 10px; }
+  .brand h1 { font-size: 1.25rem; }
+  .stats { order: 4; width: 100%; font-size: .8rem; }
+  .filter { order: 3; width: 100%; }
+  .filter select { flex: 1; max-width: none; }
+  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding-bottom: 10px;
+    padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
+  .tab { --c: var(--muted); border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 8px 4px; font-weight: 700; font-size: .85rem;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; border-bottom: 3px solid var(--c); cursor: pointer; }
+  .tab .count { font-size: .72rem; }
+  .tab[aria-selected="true"] { background: color-mix(in srgb, var(--c) 16%, var(--surface)); border-color: var(--c); }
+  .board { grid-template-columns: minmax(0, 1fr); padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
+  .col:not(.active) { display: none; }
+  .col-head h2, .col-head .count { display: none; }
+  .col-head { min-height: 0; padding: 10px 12px; }
+  .col-head:has(.col-hours:empty) { display: none; }
+  .col-hours { margin-left: 0; }
+  .col-body { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 10px; }
+  .dlg { grid-template-columns: 100px minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  border-radius: 8px; padding: 8px 14px; font-weight: 600; font-size: .9rem; line-height: 1.2; white-space: nowrap; cursor: pointer; text-decoration: none; }
+.btn:hover:not(:disabled) { border-color: var(--muted); }
+.btn:disabled { opacity: .5; cursor: default; }
+
+/* ---------- Streams carousel (YouTube playlist) ---------- */
+.streams { flex: none; padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); }
+.streams-box { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.streams-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 16px; min-height: 52px; }
+.streams-toggle { display: inline-flex; align-items: center; gap: 10px; border: 0; background: none; padding: 4px 6px 4px 0; cursor: pointer; border-radius: 8px; min-width: 0; }
+.streams-toggle h2 { font: 700 1.05rem/1.2 var(--display); margin: 0; white-space: nowrap; }
+.streams-toggle .chev { color: var(--muted); transition: transform .2s ease; flex: none; }
+.streams-toggle[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+.streams-icon { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; flex: none;
+  background: color-mix(in srgb, var(--todo) 16%, transparent); color: var(--todo); }
+.streams .count { --c: var(--todo); }
+.streams-sub { color: var(--muted); font-size: .82rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.streams-nav { margin-left: auto; display: flex; gap: 6px; flex: none; }
+.navbtn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  display: grid; place-items: center; cursor: pointer; padding: 0; }
+.navbtn:hover:not(:disabled) { border-color: var(--muted); }
+.navbtn:disabled { opacity: .35; cursor: default; }
+.streams-track { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-inline: 16px;
+  padding: 2px 16px 16px; scrollbar-width: none; overscroll-behavior-x: contain; }
+.streams-track::-webkit-scrollbar { display: none; }
+.streams.collapsed .streams-track, .streams.collapsed .streams-nav { display: none; }
+.vcard { flex: 0 0 236px; scroll-snap-align: start; border: 0; background: none; padding: 0; text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 7px; color: inherit; min-width: 0; }
+.vthumb { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: var(--raised); box-shadow: var(--shadow); }
+.vthumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .25s ease; }
+.vcard:hover .vthumb img { transform: scale(1.04); }
+.vdur { position: absolute; right: 6px; bottom: 6px; background: rgb(10 12 18 / .82); color: #fff; font: 700 .7rem/1 var(--mono); padding: 4px 5px; border-radius: 4px; }
+.vnew { position: absolute; left: 6px; top: 6px; background: var(--todo); color: #fff; font: 700 .66rem/1 var(--body); letter-spacing: .04em; text-transform: uppercase; padding: 4px 6px; border-radius: 4px; }
+.vplay { position: absolute; inset: 0; display: grid; place-items: center; background: rgb(8 10 16 / .28); opacity: 0; transition: opacity .15s ease; }
+.vcard:hover .vplay, .vcard:focus-visible .vplay { opacity: 1; }
+.vplay span { width: 46px; height: 46px; border-radius: 50%; background: rgb(255 255 255 / .92); display: grid; place-items: center; color: #111; }
+.vtitle { font-weight: 700; font-size: .88rem; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.vdate { color: var(--muted); font-size: .78rem; margin-top: -3px; }
+dialog.player { width: min(980px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 0; overflow: hidden; }
+.player-frame { aspect-ratio: 16 / 9; background: #000; position: relative; }
+.player-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.player-frame .noembed { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: #fff; padding: 20px;
+  background: center / cover no-repeat; }
+.player-frame .noembed div { background: rgb(8 10 16 / .78); padding: 16px 18px; border-radius: 10px; display: grid; gap: 10px; justify-items: center; }
+.player-info { display: flex; align-items: center; gap: 10px 14px; padding: 12px 14px 14px 18px; flex-wrap: wrap; }
+.player-info .pt { margin-right: auto; min-width: 0; }
+.player-info h3 { font: 700 1.1rem/1.25 var(--display); margin: 0; overflow-wrap: anywhere; }
+.player-info .pd { color: var(--muted); font-size: .85rem; }
+.player-info .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.player-info a.btn { text-decoration: none; color: var(--fg); }
+@media (max-width: 760px) {
+  .streams { padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
+  .streams-head { padding: 8px 10px 8px 12px; min-height: 0; }
+  .streams-sub { display: none; }
+  .vcard { flex-basis: 172px; }
+  .streams-track { gap: 10px; padding: 2px 12px 12px; scroll-padding-inline: 12px; }
+  .navbtn { width: 32px; height: 32px; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="7" height="22" rx="1.5" fill="var(--done)"/><rect x="12.5" y="5" width="7" height="22" rx="1.5" fill="var(--prog)"/><rect x="22" y="5" width="7" height="22" rx="1.5" fill="var(--todo)"/></svg>
+    <h1 id="name">Game Shelf</h1>
+  </div>
+  <div class="stats" id="stats"></div>
+  <label class="filter" id="filterWrap" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>
+    <select id="consoleFilter" aria-label="Filter by console"></select>
+  </label>
+</header>
+<nav class="tabs" id="tabs" role="tablist"></nav>
+<main class="board" id="board"><p class="notice" id="notice">Loading the shelf…</p></main>
+
+<section class="streams" id="streams" hidden aria-label="Stream videos">
+  <div class="streams-box">
+    <div class="streams-head">
+      <button class="streams-toggle" id="streamsToggle" type="button" aria-expanded="true" aria-controls="streamsTrack">
+        <svg class="chev" width="14" height="14" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        <span class="streams-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>
+        <h2>Streams</h2><span class="count" id="streamsCount">0</span>
+      </button>
+      <span class="streams-sub" id="streamsSub"></span>
+      <div class="streams-nav">
+        <button class="navbtn" id="streamsPrev" type="button" aria-label="Earlier videos"><svg width="14" height="14" viewBox="0 0 10 10"><path d="M6.5 1.5L3 5l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+        <button class="navbtn" id="streamsNext" type="button" aria-label="More videos"><svg width="14" height="14" viewBox="0 0 10 10"><path d="M3.5 1.5L7 5 3.5 8.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+      </div>
+    </div>
+    <div class="streams-track" id="streamsTrack"></div>
+  </div>
+</section>
+
+<dialog class="player" id="playerDlg" aria-label="Video player">
+  <div class="player-frame" id="playerFrame"></div>
+  <div class="player-info">
+    <div class="pt"><h3 id="playerTitle"></h3><div class="pd" id="playerDate"></div></div>
+    <div class="row">
+      <button class="btn" type="button" id="playerPrev">Newer</button>
+      <button class="btn" type="button" id="playerNext">Older</button>
+      <a class="btn" id="playerYt" target="_blank" rel="noopener">Open on YouTube</a>
+      <button class="btn" type="button" id="playerClose">Close</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="dlg"><button class="close" type="button" aria-label="Close" onclick="this.closest('dialog').close()">✕</button><div class="dlg" id="dlgBody"></div></dialog>
+
+<script>
+'use strict';
+const COLS = [
+  { status: 'completed', name: 'Completed' },
+  { status: 'progress', name: 'In Progress' },
+  { status: 'incomplete', name: 'Incomplete' },
+];
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const hue = s => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+function fmtHours(min) {
+  if (min == null) return '';
+  if (min === 0) return '0 h';
+  if (min < 60) return `${min} min`;
+  const h = min / 60; return `${h >= 100 ? Math.round(h) : h.toFixed(1).replace(/\.0$/, '')} h`;
+}
+function ago(ms) {
+  const m = Math.round((Date.now() - ms) / 60000);
+  if (m < 1) return 'just now'; if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60); if (h < 24) return `${h} h ago`;
+  return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+const sortKey = t => t.replace(/^(the|a|an)\s+/i, '');
+const byName = (a, b) => sortKey(a.title).localeCompare(sortKey(b.title), undefined, { numeric: true, sensitivity: 'base' });
+function sortGames(games, mode) {
+  if (mode === 'az') return [...games].sort(byName);
+  if (mode === 'za') return [...games].sort((a, b) => byName(b, a));
+  if (mode === 'hours') return [...games].sort((a, b) => ((b.minutes ?? -1) - (a.minutes ?? -1)) || byName(a, b));
+  return games;
+}
+
+let data = null, active = 'progress', filter = '';
+try { filter = localStorage.getItem('gs.share.filter') || ''; } catch {}
+
+function build() {
+  const board = $('#board'), tabs = $('#tabs');
+  board.innerHTML = ''; tabs.innerHTML = '';
+  for (const c of COLS) {
+    board.insertAdjacentHTML('beforeend', `<section class="col" data-status="${c.status}"><div class="col-head"><h2>${c.name}</h2><span class="count">0</span><span class="col-hours"></span></div><div class="col-body"></div></section>`);
+    const t = document.createElement('button');
+    t.className = 'tab'; t.dataset.status = c.status; t.setAttribute('role', 'tab');
+    t.innerHTML = `<span>${c.name}</span><span class="count">0</span>`;
+    t.onclick = () => setTab(c.status);
+    tabs.append(t);
+  }
+  setTab(active);
+}
+function setTab(s) {
+  active = s;
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.status === s));
+  document.querySelectorAll('.col').forEach(c => c.classList.toggle('active', c.dataset.status === s));
+}
+const matches = g => !filter || (filter === '__none' ? !g.console : (g.console || '').toLowerCase() === filter.toLowerCase());
+
+function render() {
+  document.title = data.name;
+  $('#name').textContent = data.name;
+  // Console filter
+  const names = [];
+  if (data.showConsole) for (const g of data.games) if (g.console && !names.some(n => n.toLowerCase() === g.console.toLowerCase())) names.push(g.console);
+  names.sort((a, b) => a.localeCompare(b));
+  if (filter && filter !== '__none' && !names.some(n => n.toLowerCase() === filter.toLowerCase())) filter = '';
+  $('#filterWrap').hidden = !names.length;
+  $('#consoleFilter').innerHTML = `<option value="">All consoles</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')
+    + (data.games.some(g => !g.console) && names.length ? `<option value="__none">Not set</option>` : '');
+  $('#consoleFilter').value = filter;
+  $('#filterWrap').classList.toggle('on', !!filter);
+
+  let total = 0;
+  for (const c of COLS) {
+    const games = sortGames(data.games.filter(g => g.status === c.status && matches(g)), (data.sort || {})[c.status]);
+    const col = document.querySelector(`.col[data-status="${c.status}"]`);
+    const body = col.querySelector('.col-body');
+    body.innerHTML = games.length ? games.map(card).join('') : `<div class="empty">Nothing here${filter ? ' for this console' : ''} yet.</div>`;
+    const mins = games.reduce((s, g) => s + (g.minutes || 0), 0); total += mins;
+    col.querySelector('.count').textContent = games.length;
+    col.querySelector('.col-hours').textContent = data.showHours && mins ? `${fmtHours(mins)} played` : '';
+    document.querySelector(`.tab[data-status="${c.status}"] .count`).textContent = games.length;
+  }
+  renderStreams(data.videos);
+  const shown = data.games.filter(matches), all = data.games.length;
+  const done = shown.filter(g => g.status === 'completed').length;
+  $('#stats').innerHTML = `<span><b>${shown.length}</b>${filter ? ` of ${all}` : ''} games${filter ? ` on <b class="name">${esc(filter === '__none' ? 'no console' : filter)}</b>` : ''}</span>`
+    + `<span><b>${done}</b> finished</span>`
+    + (data.showHours && total ? `<span><b>${fmtHours(total)}</b> played</span>` : '')
+    + `<span class="updated" title="${new Date(data.updatedAt).toLocaleString()}">Updated ${ago(data.updatedAt)}</span>`;
+}
+function card(g) {
+  const hours = data.showHours ? fmtHours(g.minutes) : '';
+  const art = g.art ? `<img src="${esc(g.art)}" alt="" loading="lazy">` : `<div class="ph" style="--h:${hue(g.title)}">${esc(g.title)}</div>`;
+  return `<button type="button" class="card${g.art ? '' : ' has-ph'}${hours ? ' with-hours' : ''}" data-id="${g.id}" aria-label="${esc(g.title)}${g.console ? ', ' + esc(g.console) : ''}${hours ? ', ' + hours : ''}">
+    ${art}${g.console ? `<span class="cbadge">${esc(g.console)}</span>` : ''}
+    <div class="meta"><span class="t">${esc(g.title)}</span>${hours ? `<span class="h">${hours}</span>` : ''}</div></button>`;
+}
+document.addEventListener('click', e => {
+  const c = e.target.closest('.card'); if (!c) return;
+  const g = data.games.find(x => x.id === c.dataset.id); if (!g) return;
+  const col = COLS.find(x => x.status === g.status).name;
+  const date = ms => new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  $('#dlgBody').innerHTML = `<div class="cover">${g.art ? `<img src="${esc(g.art)}" alt="${esc(g.title)} box art">` : `<div class="ph" style="--h:${hue(g.title)}">${esc(g.title)}</div>`}</div>
+    <div><h3>${esc(g.title)}</h3><span class="pill" data-status="${g.status}">${col}</span>
+    <dl class="kv">${g.console ? `<dt>Played on</dt><dd>${esc(g.console)}</dd>` : ''}${data.showHours && g.minutes != null ? `<dt>Hours</dt><dd>${fmtHours(g.minutes)}</dd>` : ''}
+    ${g.completedAt ? `<dt>Finished</dt><dd>${date(g.completedAt)}</dd>` : ''}<dt>Added</dt><dd>${date(g.addedAt)}</dd></dl></div>`;
+  $('#dlg').showModal();
+});
+$('#dlg').addEventListener('click', e => { if (e.target === $('#dlg')) $('#dlg').close(); });
+$('#consoleFilter').onchange = e => { filter = e.target.value; try { filter ? localStorage.setItem('gs.share.filter', filter) : localStorage.removeItem('gs.share.filter'); } catch {} render(); };
+
+
+// ---------- Streams carousel (YouTube playlist) ----------
+const vsThumb = id => `https://i.ytimg.com/vi/${encodeURIComponent(id)}/mqdefault.jpg`;
+function vsWhen(ms) {
+  if (!ms) return '';
+  const days = Math.floor((Date.now() - ms) / 864e5);
+  const date = new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(new Date(ms).getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) });
+  const rel = days < 1 ? 'today' : days < 2 ? 'yesterday' : days < 30 ? `${days} days ago` : '';
+  return rel ? `${date} · ${rel}` : date;
+}
+let vsItems = [], vsSig = '', vsPlaying = -1;
+try { if (localStorage.getItem('gs.streams.collapsed') === '1') document.getElementById('streams').classList.add('collapsed'); } catch {}
+function renderStreams(v) {
+  const sec = document.getElementById('streams');
+  const items = (v && v.items) || [];
+  sec.hidden = !items.length;
+  if (!items.length) { vsItems = []; vsSig = ''; return; }
+  document.getElementById('streamsCount').textContent = items.length;
+  const title = (v.title || '').trim();
+  document.getElementById('streamsSub').textContent = title && title.toLowerCase() !== 'streams' ? title : '';
+  document.getElementById('streamsToggle').setAttribute('aria-expanded', String(!sec.classList.contains('collapsed')));
+  const sig = JSON.stringify(items.map(i => [i.id, i.title, i.duration, i.date]));
+  if (sig === vsSig) return;
+  vsSig = sig; vsItems = items;
+  document.getElementById('streamsTrack').innerHTML = items.map((it, i) => {
+    const isNew = it.date && Date.now() - it.date < 3 * 864e5;
+    return `<button type="button" class="vcard" data-vi="${i}" aria-label="Play ${esc(it.title)}${it.duration ? ', ' + it.duration : ''}">
+      <span class="vthumb"><img src="${vsThumb(it.id)}" alt="" loading="lazy" draggable="false">
+        ${isNew ? '<span class="vnew">New</span>' : ''}${it.duration ? `<span class="vdur">${esc(it.duration)}</span>` : ''}
+        <span class="vplay"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span></span></span>
+      <span class="vtitle">${esc(it.title)}</span>${it.date ? `<span class="vdate">${esc(vsWhen(it.date))}</span>` : ''}</button>`;
+  }).join('');
+  vsNav();
+}
+function vsNav() {
+  const t = document.getElementById('streamsTrack');
+  document.getElementById('streamsPrev').disabled = t.scrollLeft <= 2;
+  document.getElementById('streamsNext').disabled = t.scrollLeft + t.clientWidth >= t.scrollWidth - 2;
+}
+(function wireStreams() {
+  const t = document.getElementById('streamsTrack'), sec = document.getElementById('streams');
+  t.addEventListener('scroll', vsNav, { passive: true });
+  addEventListener('resize', vsNav);
+  // A normal mouse wheel scrolls the carousel sideways.
+  t.addEventListener('wheel', e => {
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    const before = t.scrollLeft; t.scrollLeft += e.deltaY;
+    if (t.scrollLeft !== before) e.preventDefault();
+  }, { passive: false });
+  const page = dir => t.scrollBy({ left: dir * Math.max(200, t.clientWidth * 0.85), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  document.getElementById('streamsPrev').onclick = () => page(-1);
+  document.getElementById('streamsNext').onclick = () => page(1);
+  document.getElementById('streamsToggle').onclick = () => {
+    const collapsed = sec.classList.toggle('collapsed');
+    document.getElementById('streamsToggle').setAttribute('aria-expanded', String(!collapsed));
+    try { localStorage.setItem('gs.streams.collapsed', collapsed ? '1' : '0'); } catch {}
+    if (!collapsed) vsNav();
+  };
+  t.addEventListener('click', e => { const c = e.target.closest('.vcard'); if (c) vsPlay(Number(c.dataset.vi)); });
+  const dlg = document.getElementById('playerDlg');
+  const stop = () => { document.getElementById('playerFrame').innerHTML = ''; vsPlaying = -1; };
+  dlg.addEventListener('close', stop);
+  dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+  document.getElementById('playerClose').onclick = () => dlg.close();
+  document.getElementById('playerPrev').onclick = () => vsPlay(vsPlaying - 1);
+  document.getElementById('playerNext').onclick = () => vsPlay(vsPlaying + 1);
+})();
+function vsPlay(i) {
+  const it = vsItems[i]; if (!it) return;
+  vsPlaying = i;
+  const yt = `https://www.youtube.com/watch?v=${encodeURIComponent(it.id)}`;
+  document.getElementById('playerFrame').innerHTML = it.embed === false
+    ? `<div class="noembed" style="background-image:url('${vsThumb(it.id)}')"><div><span>This video can only be watched on YouTube.</span><a class="btn" href="${yt}" target="_blank" rel="noopener">Watch on YouTube</a></div></div>`
+    : `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(it.id)}?autoplay=1&rel=0&playsinline=1" title="${esc(it.title)}"
+        allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+  document.getElementById('playerTitle').textContent = it.title;
+  document.getElementById('playerDate').textContent = [it.date ? vsWhen(it.date) : '', it.duration].filter(Boolean).join(' · ');
+  document.getElementById('playerYt').href = yt;
+  document.getElementById('playerPrev').disabled = i <= 0;
+  document.getElementById('playerNext').disabled = i >= vsItems.length - 1;
+  const dlg = document.getElementById('playerDlg');
+  if (!dlg.open) dlg.showModal();
+}
+
+async function load() {
+  try {
+    const r = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status);
+    const next = await r.json();
+    const first = !data;
+    if (!first && next.updatedAt === data.updatedAt) { render(); return; } // refresh the "updated" time only
+    data = next;
+    if (first) build();
+    render();
+  } catch {
+    if (!data) $('#notice').textContent = "This shelf hasn't been published yet, or couldn't be loaded. Try again in a minute.";
+  }
+}
+load();
+setInterval(load, 120000); // check for updates every 2 minutes
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+</script>
+</body>
+</html>
