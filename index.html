@@ -13,7 +13,7 @@
 /* View-only copy of a Media Shelf, published for friends. Same look as the app; nothing here can change the shelf. */
 :root {
   --bg: #eceef3; --surface: #ffffff; --raised: #f6f7fa; --line: #d9dce5; --fg: #171a22; --muted: #5d6475;
-  --done: #1f9a6c; --prog: #c2861a; --todo: #cc4f47; --accent: #3a5bd9;
+  --done: #1f9a6c; --prog: #c2861a; --todo: #cc4f47; --accent: #3a5bd9; --on-accent: #fff;
   --shadow: 0 1px 2px rgb(20 24 40 / .08), 0 6px 18px rgb(20 24 40 / .08);
   --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --body: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -24,7 +24,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #14161c; --surface: #1c1f27; --raised: #232733; --line: #2e3341; --fg: #eceef4; --muted: #9aa1b3;
-    --done: #4fc39a; --prog: #f2b84b; --todo: #e8746c; --accent: #7d97ff;
+    --done: #4fc39a; --prog: #f2b84b; --todo: #e8746c; --accent: #7d97ff; --on-accent: #0f1220;
     --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
     color-scheme: dark;
   }
@@ -90,7 +90,9 @@ button, select { font: inherit; color: inherit; }
 .meta .h { font: 700 .72rem var(--mono); opacity: .9; }
 .card.has-ph .meta .t { display: none; }
 .card.has-ph .meta { background: none; }
-.cbadge { position: absolute; top: 6px; left: 6px; max-width: calc(100% - 12px); z-index: 1; background: rgb(10 12 18 / .78); color: #fff;
+.badges { position: absolute; top: 6px; left: 6px; max-width: calc(100% - 12px); z-index: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.abadge { background: var(--accent); color: var(--on-accent, #fff); font: 700 .62rem/1 var(--body); letter-spacing: .05em; text-transform: uppercase; padding: 4px 6px; border-radius: 5px; }
+.cbadge { max-width: 100%; background: rgb(10 12 18 / .78); color: #fff;
   font: 700 .66rem/1 var(--body); letter-spacing: .03em; padding: 4px 6px; border-radius: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 dialog { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--fg); padding: 0;
@@ -356,7 +358,7 @@ function setTab(s) {
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.status === s));
   document.querySelectorAll('.col').forEach(c => c.classList.toggle('active', c.dataset.status === s));
 }
-const matches = g => !filter || (filter === '__none' ? !g.console : (g.console || '').toLowerCase() === filter.toLowerCase());
+const matches = g => !filter || (filter === '__none' ? !g.console : filter === '__anime' ? !!g.anime : filter === '__notanime' ? !g.anime : (g.console || '').toLowerCase() === filter.toLowerCase());
 
 function render() {
   document.title = data.name;
@@ -375,10 +377,13 @@ function render() {
   const names = [];
   if (data.showConsole) for (const g of items) if (g.console && !names.some(n => n.toLowerCase() === g.console.toLowerCase())) names.push(g.console);
   names.sort((a, b) => a.localeCompare(b));
-  if (filter && filter !== '__none' && !names.some(n => n.toLowerCase() === filter.toLowerCase())) filter = '';
-  $('#filterWrap').hidden = !names.length;
+  const anyAnime = kind !== 'game' && items.some(g => g.anime);
+  const animeF = filter === '__anime' || filter === '__notanime';
+  if (filter && filter !== '__none' && !(animeF && anyAnime) && !names.some(n => n.toLowerCase() === filter.toLowerCase())) filter = '';
+  $('#filterWrap').hidden = !names.length && !anyAnime;
   $('#consoleFilter').innerHTML = `<option value="">All ${K().listNoun}s</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')
-    + (items.some(g => !g.console) && names.length ? `<option value="__none">Not set</option>` : '');
+    + (items.some(g => !g.console) && names.length ? `<option value="__none">Not set</option>` : '')
+    + (anyAnime ? `${names.length ? "<option disabled>──────────</option>" : ""}<option value="__anime">Anime only</option><option value="__notanime">Not anime</option>` : '');
   $('#consoleFilter').value = filter;
   $('#filterWrap').classList.toggle('on', !!filter);
 
@@ -388,7 +393,7 @@ function render() {
     const games = sortGames(items.filter(g => g.status === c.status && matches(g)), sorts[c.status]);
     const col = document.querySelector(`.col[data-status="${c.status}"]`);
     const body = col.querySelector('.col-body');
-    body.innerHTML = games.length ? games.map(card).join('') : `<div class="empty">Nothing here${filter ? ` for this ${K().listNoun}` : ''} yet.</div>`;
+    body.innerHTML = games.length ? games.map(card).join('') : `<div class="empty">Nothing here${filter === '__anime' ? ' that\'s anime' : filter === '__notanime' ? ' that isn\'t anime' : filter ? ` for this ${K().listNoun}` : ''} yet.</div>`;
     const mins = kind === 'movie' ? games.reduce((s, g) => s + (g.status === 'completed' ? (g.runtime || 0) : ((g.progress && g.progress.min) || 0)), 0)
       : kind === 'tv' ? games.reduce((s, g) => s + watchedEps(g), 0) : games.reduce((s, g) => s + (g.minutes || 0), 0);
     total += mins;
@@ -401,7 +406,7 @@ function render() {
   const shown = items.filter(matches), all = items.length;
   const done = shown.filter(g => g.status === 'completed').length;
   const totalTxt = !total ? '' : kind === 'tv' ? `<span><b>${total}</b> episodes watched</span>` : kind === 'movie' ? `<span><b>${fmtHours(total)}</b> watched</span>` : data.showHours ? `<span><b>${fmtHours(total)}</b> played</span>` : '';
-  $('#stats').innerHTML = `<span><b>${shown.length}</b>${filter ? ` of ${all}` : ''} ${(filter ? all : shown.length) === 1 ? K().noun : K().nouns}${filter ? ` on <b class="name">${esc(filter === '__none' ? 'no ' + K().listNoun : filter)}</b>` : ''}</span>`
+  $('#stats').innerHTML = `<span><b>${shown.length}</b>${filter ? ` of ${all}` : ''} ${(filter ? all : shown.length) === 1 ? K().noun : K().nouns}${!filter ? '' : filter === '__anime' ? ' · <b class="name">anime only</b>' : filter === '__notanime' ? ' · <b class="name">not anime</b>' : ` on <b class="name">${esc(filter === '__none' ? 'no ' + K().listNoun : filter)}</b>`}</span>`
     + `<span><b>${done}</b> ${kind === 'game' ? 'finished' : 'watched'}</span>` + totalTxt
     + `<span class="updated" title="${new Date(data.updatedAt).toLocaleString()}">Updated ${ago(data.updatedAt)}</span>`;
 }
@@ -416,8 +421,8 @@ function card(g) {
   const art = g.art ? `<img src="${esc(g.art)}" alt="" loading="lazy">` : `<div class="ph" style="--h:${hue(g.title)}">${esc(g.title)}</div>`;
   const bottom = pi && pi.corner ? '' : pi ? `<span class="h">${esc(pi.label)}</span>${pi.pct != null ? `<span class="pbar"><i style="width:${Math.max(3, Math.min(100, pi.pct))}%"></i></span>` : ''}` : hours ? `<span class="h">${hours}</span>` : '';
   const extra = pi ? pi.label : hours;
-  return `<button type="button" class="card${g.art ? '' : ' has-ph'}${bottom ? ' with-hours' : ''}" data-id="${g.id}" aria-label="${esc(g.title)}${g.console ? ', ' + esc(g.console) : ''}${extra ? ', ' + esc(extra) : ''}">
-    ${art}${g.console ? `<span class="cbadge">${esc(g.console)}</span>` : ''}${pi && pi.corner ? `<span class="rt">${esc(pi.label)}</span>` : ''}
+  return `<button type="button" class="card${g.art ? '' : ' has-ph'}${bottom ? ' with-hours' : ''}" data-id="${g.id}" aria-label="${esc(g.title)}${g.anime ? ', anime' : ''}${g.console ? ', ' + esc(g.console) : ''}${extra ? ', ' + esc(extra) : ''}">
+    ${art}${g.console || g.anime ? `<span class="badges">${g.anime ? '<span class="abadge">Anime</span>' : ''}${g.console ? `<span class="cbadge">${esc(g.console)}</span>` : ''}</span>` : ''}${pi && pi.corner ? `<span class="rt">${esc(pi.label)}</span>` : ''}
     <div class="meta"><span class="t">${esc(g.title)}</span>${bottom}</div></button>`;
 }
 document.addEventListener('click', e => {
@@ -429,6 +434,7 @@ document.addEventListener('click', e => {
   const rows = [];
   if (g.console) rows.push([kk.played, esc(g.console)]);
   if (g.year) rows.push(['Year', esc(g.year)]);
+  if (g.anime) rows.push(['Type', 'Anime']);
   if (k === 'game' && data.showHours && g.minutes != null) rows.push(['Hours', fmtHours(g.minutes)]);
   if (k === 'movie' && g.runtime) rows.push(['Runtime', fmtRuntime(g.runtime)]);
   if (k === 'tv' && totalEps(g)) rows.push(['Episodes', `${watchedEps(g)} of ${totalEps(g)}`]);
