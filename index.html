@@ -60,7 +60,7 @@ button, select { font: inherit; color: inherit; }
 .filter select option { color: var(--fg); background: var(--surface); }
 
 .tabs { display: none; }
-.board { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;
+.board { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(var(--ncols, 3), minmax(0, 1fr)); gap: 14px;
   padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
   padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); }
 .col { --c: var(--muted); display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--surface);
@@ -135,7 +135,7 @@ dialog::backdrop { background: rgb(10 12 18 / .6); backdrop-filter: blur(3px); }
   .stats { order: 4; width: 100%; font-size: .8rem; }
   .filter { order: 3; width: 100%; }
   .filter select { flex: 1; max-width: none; }
-  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding-bottom: 10px;
+  .tabs { display: grid; grid-template-columns: repeat(var(--ncols, 3), 1fr); gap: 6px; padding-bottom: 10px;
     padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
   .tab { --c: var(--muted); border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 8px 4px; font-weight: 700; font-size: .85rem;
     display: flex; flex-direction: column; align-items: center; gap: 2px; border-bottom: 3px solid var(--c); cursor: pointer; }
@@ -150,6 +150,9 @@ dialog::backdrop { background: rgb(10 12 18 / .6); backdrop-filter: blur(3px); }
   .col-body { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 10px; }
   .dlg { grid-template-columns: 100px minmax(0, 1fr); }
 }
+/* Movies: just Watched and Want to Watch. */
+body[data-kind="movie"] { --ncols: 2; }
+body[data-kind="movie"] .col[data-status="progress"], body[data-kind="movie"] .tab[data-status="progress"] { display: none; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
 .btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg);
@@ -367,6 +370,8 @@ function render() {
   const present = KINDS.filter(k => data.games.some(g => kindOf(g) === k.key));
   if (!present.some(k => k.key === kind)) kind = (present[0] || KINDS[0]).key;
   $('#mediaTabs').hidden = present.length < 2;
+  document.body.dataset.kind = kind;
+  if (kind === 'movie' && active === 'progress') setTab('incomplete');
   $('#mediaTabs').innerHTML = present.map(k => `<button type="button" role="tab" data-kind="${k.key}" aria-pressed="${k.key === kind}">${k.label}<span class="n">${data.games.filter(g => kindOf(g) === k.key).length}</span></button>`).join('');
   for (const c of COLS) {
     document.querySelector(`.col[data-status="${c.status}"] h2`).textContent = c.name;
