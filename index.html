@@ -117,6 +117,8 @@ dialog::backdrop { background: rgb(10 12 18 / .6); backdrop-filter: blur(3px); }
 .media-tabs .n { font: 700 .72rem var(--mono); color: var(--muted); }
 .top .brand { margin-right: 0; }
 .top .stats { margin-left: auto; }
+.card .more { display: inline-flex; align-items: center; gap: 5px; background: rgb(10 12 18 / .78); color: #fff; backdrop-filter: blur(4px); font: 700 .62rem/1 var(--body); letter-spacing: .04em; text-transform: uppercase; padding: 4px 6px; border-radius: 5px; }
+.card .more i { width: 6px; height: 6px; border-radius: 50%; background: #4fc39a; box-shadow: 0 0 0 2px rgb(79 195 154 / .3); }
 .card .rt { position: absolute; top: 6px; right: 6px; background: rgb(10 12 18 / .78); color: #fff; font: 700 .66rem/1 var(--mono); padding: 4px 6px; border-radius: 5px; z-index: 1; }
 .card .pbar { display: block; height: 5px; border-radius: 3px; background: rgb(255 255 255 / .25); overflow: hidden; margin-top: 3px; }
 .card .pbar i { display: block; height: 100%; background: var(--prog); border-radius: 3px; }
@@ -420,14 +422,15 @@ function trailerList() {
   return { heading: 'Trailers', title: `For ${K().nouns} on the Want to Watch list`, prevLabel: 'Previous', nextLabel: 'Next',
     items: items.map(g => ({ id: g.trailer.key, title: `${g.title}${g.year ? ' (' + g.year + ')' : ''}`, duration: '', date: null, embed: true, sub: g.console || 'Trailer', trailer: true })) };
 }
+const moreComing = g => kindOf(g) === 'tv' && /^(Returning Series|In Production|Planned)$/.test(g.tvStatus || '');
 function card(g) {
   const pi = progressInfo(g);
   const hours = kindOf(g) === 'game' && data.showHours ? fmtHours(g.minutes) : '';
   const art = g.art ? `<img src="${esc(g.art)}" alt="" loading="lazy">` : `<div class="ph" style="--h:${hue(g.title)}">${esc(g.title)}</div>`;
   const bottom = pi && pi.corner ? '' : pi ? `<span class="h">${esc(pi.label)}</span>${pi.pct != null ? `<span class="pbar"><i style="width:${Math.max(3, Math.min(100, pi.pct))}%"></i></span>` : ''}` : hours ? `<span class="h">${hours}</span>` : '';
   const extra = pi ? pi.label : hours;
-  return `<button type="button" class="card${g.art ? '' : ' has-ph'}${bottom ? ' with-hours' : ''}" data-id="${g.id}" aria-label="${esc(g.title)}${g.anime ? ', anime' : ''}${g.console ? ', ' + esc(g.console) : ''}${extra ? ', ' + esc(extra) : ''}">
-    ${art}${g.console || g.anime ? `<span class="badges">${g.anime ? '<span class="abadge">Anime</span>' : ''}${g.console ? `<span class="cbadge">${esc(g.console)}</span>` : ''}</span>` : ''}${pi && pi.corner ? `<span class="rt">${esc(pi.label)}</span>` : ''}
+  return `<button type="button" class="card${g.art ? '' : ' has-ph'}${bottom ? ' with-hours' : ''}" data-id="${g.id}" aria-label="${esc(g.title)}${g.anime ? ', anime' : ''}${moreComing(g) ? ', more seasons coming' : ''}${g.console ? ', ' + esc(g.console) : ''}${extra ? ', ' + esc(extra) : ''}">
+    ${art}${g.console || g.anime || moreComing(g) ? `<span class="badges">${g.anime ? '<span class="abadge">Anime</span>' : ''}${moreComing(g) ? '<span class="more" title="More seasons are coming"><i></i>More coming</span>' : ''}${g.console ? `<span class="cbadge">${esc(g.console)}</span>` : ''}</span>` : ''}${pi && pi.corner ? `<span class="rt">${esc(pi.label)}</span>` : ''}
     <div class="meta"><span class="t">${esc(g.title)}</span>${bottom}</div></button>`;
 }
 document.addEventListener('click', e => {
@@ -440,6 +443,7 @@ document.addEventListener('click', e => {
   if (g.console) rows.push([kk.played, esc(g.console)]);
   if (g.year) rows.push(['Year', esc(g.year)]);
   if (g.anime) rows.push(['Type', 'Anime']);
+  if (k === 'tv' && g.tvStatus) rows.push(['Series', moreComing(g) ? 'More seasons coming' : /Ended|Canceled/.test(g.tvStatus) ? (g.tvStatus === 'Canceled' ? 'Canceled' : 'Ended') : esc(g.tvStatus)]);
   if (k === 'game' && data.showHours && g.minutes != null) rows.push(['Hours', fmtHours(g.minutes)]);
   if (k === 'movie' && g.runtime) rows.push(['Runtime', fmtRuntime(g.runtime)]);
   if (k === 'tv' && totalEps(g)) rows.push(['Episodes', `${watchedEps(g)} of ${totalEps(g)}`]);
