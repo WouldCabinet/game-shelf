@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14161c">
-<title>Game Shelf</title>
+<title>Media Shelf</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='5' width='7' height='22' rx='1.5' fill='%234fc39a'/%3E%3Crect x='12.5' y='5' width='7' height='22' rx='1.5' fill='%23f2b84b'/%3E%3Crect x='22' y='5' width='7' height='22' rx='1.5' fill='%23e8746c'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
-/* View-only copy of a Game Shelf, published for friends. Same look as the app; nothing here can change the shelf. */
+/* View-only copy of a Media Shelf, published for friends. Same look as the app; nothing here can change the shelf. */
 :root {
   --bg: #eceef3; --surface: #ffffff; --raised: #f6f7fa; --line: #d9dce5; --fg: #171a22; --muted: #5d6475;
   --done: #1f9a6c; --prog: #c2861a; --todo: #cc4f47; --accent: #3a5bd9;
@@ -107,8 +107,28 @@ dialog::backdrop { background: rgb(10 12 18 / .6); backdrop-filter: blur(3px); }
 .close { position: absolute; top: 10px; right: 10px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; width: 32px; height: 32px; cursor: pointer; }
 .notice { margin: auto; color: var(--muted); text-align: center; padding: 40px 16px; }
 
+/* Games · Movies · TV switcher, runtimes and progress bars */
+.media-tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); flex: none; }
+.media-tabs button { border: 0; background: none; padding: 7px 14px; font-weight: 700; font-size: .9rem; color: var(--muted); display: inline-flex; gap: 7px; align-items: center; border-left: 1px solid var(--line); cursor: pointer; }
+.media-tabs button:first-child { border-left: 0; }
+.media-tabs button[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); color: var(--fg); }
+.media-tabs .n { font: 700 .72rem var(--mono); color: var(--muted); }
+.top .brand { margin-right: 0; }
+.top .stats { margin-left: auto; }
+.card .rt { position: absolute; top: 6px; right: 6px; background: rgb(10 12 18 / .78); color: #fff; font: 700 .66rem/1 var(--mono); padding: 4px 6px; border-radius: 5px; z-index: 1; }
+.card .pbar { display: block; height: 5px; border-radius: 3px; background: rgb(255 255 255 / .25); overflow: hidden; margin-top: 3px; }
+.card .pbar i { display: block; height: 100%; background: var(--prog); border-radius: 3px; }
+.card.with-hours .ph { padding-bottom: 38px; }
+.vnew.vtrailer { background: rgb(10 12 18 / .8); }
+.pmeter { height: 7px; border-radius: 4px; background: var(--raised); overflow: hidden; margin-top: 10px; }
+.pmeter i { display: block; height: 100%; background: var(--prog); border-radius: 4px; }
+.dlg .trailer-btn { margin-top: 12px; }
 @media (max-width: 760px) {
   .top { gap: 10px; padding-block: 10px; }
+  .top > .brand { order: 0; margin-right: auto; }
+  .media-tabs { order: 2; width: 100%; display: flex; }
+  .media-tabs[hidden] { display: none; }
+  .media-tabs button { flex: 1; justify-content: center; padding: 8px 6px; }
   .brand h1 { font-size: 1.25rem; }
   .stats { order: 4; width: 100%; font-size: .8rem; }
   .filter { order: 3; width: 100%; }
@@ -195,12 +215,13 @@ dialog.player { width: min(980px, calc(100vw - 24px)); max-height: calc(100dvh -
 <header class="top">
   <div class="brand">
     <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="7" height="22" rx="1.5" fill="var(--done)"/><rect x="12.5" y="5" width="7" height="22" rx="1.5" fill="var(--prog)"/><rect x="22" y="5" width="7" height="22" rx="1.5" fill="var(--todo)"/></svg>
-    <h1 id="name">Game Shelf</h1>
+    <h1 id="name">Media Shelf</h1>
   </div>
+  <div class="media-tabs" id="mediaTabs" role="tablist" aria-label="Shelf" hidden></div>
   <div class="stats" id="stats"></div>
   <label class="filter" id="filterWrap" hidden>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>
-    <select id="consoleFilter" aria-label="Filter by console"></select>
+    <select id="consoleFilter" aria-label="Filter"></select>
   </label>
 </header>
 <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -241,11 +262,18 @@ dialog.player { width: min(980px, calc(100vw - 24px)); max-height: calc(100dvh -
 
 <script>
 'use strict';
-const COLS = [
-  { status: 'completed', name: 'Completed' },
-  { status: 'progress', name: 'In Progress' },
-  { status: 'incomplete', name: 'Incomplete' },
+// Games · Movies · TV
+const KINDS = [
+  { key: 'game', label: 'Games', noun: 'game', nouns: 'games', listNoun: 'console', played: 'Played on' },
+  { key: 'movie', label: 'Movies', noun: 'movie', nouns: 'movies', listNoun: 'service', played: 'Watched on' },
+  { key: 'tv', label: 'TV', noun: 'show', nouns: 'shows', listNoun: 'service', played: 'Watched on' },
 ];
+const LABELS = {
+  game: { completed: 'Completed', progress: 'In Progress', incomplete: 'Incomplete' },
+  movie: { completed: 'Watched', progress: 'Watching', incomplete: 'Want to Watch' },
+  tv: { completed: 'Watched', progress: 'Watching', incomplete: 'Want to Watch' },
+};
+const COLS = ['completed', 'progress', 'incomplete'].map(status => ({ status, get name() { return LABELS[kind][status]; } }));
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const hue = s => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
@@ -255,35 +283,72 @@ function fmtHours(min) {
   if (min < 60) return `${min} min`;
   const h = min / 60; return `${h >= 100 ? Math.round(h) : h.toFixed(1).replace(/\.0$/, '')} h`;
 }
+function fmtRuntime(min) { if (!min) return ''; const h = Math.floor(min / 60), m = min % 60; return h ? `${h}h${m ? ' ' + m + 'm' : ''}` : `${m}m`; }
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 function ago(ms) {
   const m = Math.round((Date.now() - ms) / 60000);
   if (m < 1) return 'just now'; if (m < 60) return `${m} min ago`;
   const h = Math.round(m / 60); if (h < 24) return `${h} h ago`;
   return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
+const kindOf = g => (g.kind === 'movie' || g.kind === 'tv' ? g.kind : 'game');
+const totalEps = g => (g.seasons || []).reduce((n, x) => n + x.eps, 0);
+function watchedEps(g) {
+  if (g.status === 'completed') return totalEps(g);
+  const p = g.progress; if (!p || p.s == null || !g.seasons) return 0;
+  let n = 0; for (const x of g.seasons) { if (x.n < p.s) n += x.eps; else if (x.n === p.s) n += Math.min(p.e, x.eps); }
+  return n;
+}
+function progressInfo(g) {
+  const k = kindOf(g);
+  if (k === 'tv') {
+    const total = totalEps(g), seasons = (g.seasons || []).length;
+    if (g.status === 'completed') return { label: seasons ? `${plural(seasons, 'season')} · done` : 'Finished', pct: null };
+    const p = g.progress;
+    if (p && p.s) { const season = (g.seasons || []).find(x => x.n === p.s); return { label: `S${p.s} · E${p.e}${season ? '/' + season.eps : ''}`, pct: total ? Math.round(watchedEps(g) / total * 100) : null }; }
+    return seasons ? { label: `${plural(seasons, 'season')}${g.status === 'incomplete' ? ' · not started' : ''}`, pct: null } : null;
+  }
+  if (k === 'movie') {
+    const pm = g.progress && g.progress.min;
+    if (g.status === 'progress' && pm) return { label: g.runtime ? `${fmtRuntime(pm)} of ${fmtRuntime(g.runtime)}` : `${fmtRuntime(pm)} in`, pct: g.runtime ? Math.round(pm / g.runtime * 100) : null };
+    return g.runtime ? { label: fmtRuntime(g.runtime), pct: null, corner: true } : null;
+  }
+  return null;
+}
 const sortKey = t => t.replace(/^(the|a|an)\s+/i, '');
 const byName = (a, b) => sortKey(a.title).localeCompare(sortKey(b.title), undefined, { numeric: true, sensitivity: 'base' });
+const sizeOf = g => kindOf(g) === 'movie' ? (g.runtime ?? -1) : kindOf(g) === 'tv' ? (g.status === 'incomplete' ? totalEps(g) : watchedEps(g)) : (g.minutes ?? -1);
 function sortGames(games, mode) {
   if (mode === 'az') return [...games].sort(byName);
   if (mode === 'za') return [...games].sort((a, b) => byName(b, a));
-  if (mode === 'hours') return [...games].sort((a, b) => ((b.minutes ?? -1) - (a.minutes ?? -1)) || byName(a, b));
+  if (mode === 'hours') return [...games].sort((a, b) => (sizeOf(b) - sizeOf(a)) || byName(a, b));
   return games;
 }
 
-let data = null, active = 'progress', filter = '';
-try { filter = localStorage.getItem('gs.share.filter') || ''; } catch {}
+let data = null, active = 'progress', filter = '', kind = 'game';
+try { const k = localStorage.getItem('gs.share.kind'); if (['game', 'movie', 'tv'].includes(k)) kind = k; } catch {}
+const K = () => KINDS.find(k => k.key === kind);
+const mine = () => data.games.filter(g => kindOf(g) === kind);
+const filterKey = () => 'gs.share.filter' + (kind === 'game' ? '' : '.' + kind);
+function loadFilter() { filter = ''; try { filter = localStorage.getItem(filterKey()) || ''; } catch {} }
+loadFilter();
 
 function build() {
   const board = $('#board'), tabs = $('#tabs');
   board.innerHTML = ''; tabs.innerHTML = '';
   for (const c of COLS) {
-    board.insertAdjacentHTML('beforeend', `<section class="col" data-status="${c.status}"><div class="col-head"><h2>${c.name}</h2><span class="count">0</span><span class="col-hours"></span></div><div class="col-body"></div></section>`);
+    board.insertAdjacentHTML('beforeend', `<section class="col" data-status="${c.status}"><div class="col-head"><h2></h2><span class="count">0</span><span class="col-hours"></span></div><div class="col-body"></div></section>`);
     const t = document.createElement('button');
     t.className = 'tab'; t.dataset.status = c.status; t.setAttribute('role', 'tab');
-    t.innerHTML = `<span>${c.name}</span><span class="count">0</span>`;
+    t.innerHTML = `<span></span><span class="count">0</span>`;
     t.onclick = () => setTab(c.status);
     tabs.append(t);
   }
+  $('#mediaTabs').onclick = e => {
+    const b = e.target.closest('button'); if (!b || b.dataset.kind === kind) return;
+    kind = b.dataset.kind; try { localStorage.setItem('gs.share.kind', kind); } catch {}
+    loadFilter(); render();
+  };
   setTab(active);
 }
 function setTab(s) {
@@ -296,56 +361,92 @@ const matches = g => !filter || (filter === '__none' ? !g.console : (g.console |
 function render() {
   document.title = data.name;
   $('#name').textContent = data.name;
-  // Console filter
+  // Tabs: only the ones that have something in them.
+  const present = KINDS.filter(k => data.games.some(g => kindOf(g) === k.key));
+  if (!present.some(k => k.key === kind)) kind = (present[0] || KINDS[0]).key;
+  $('#mediaTabs').hidden = present.length < 2;
+  $('#mediaTabs').innerHTML = present.map(k => `<button type="button" role="tab" data-kind="${k.key}" aria-pressed="${k.key === kind}">${k.label}<span class="n">${data.games.filter(g => kindOf(g) === k.key).length}</span></button>`).join('');
+  for (const c of COLS) {
+    document.querySelector(`.col[data-status="${c.status}"] h2`).textContent = c.name;
+    document.querySelector(`.tab[data-status="${c.status}"] span`).textContent = c.name;
+  }
+  const items = mine();
+  // Console / service filter
   const names = [];
-  if (data.showConsole) for (const g of data.games) if (g.console && !names.some(n => n.toLowerCase() === g.console.toLowerCase())) names.push(g.console);
+  if (data.showConsole) for (const g of items) if (g.console && !names.some(n => n.toLowerCase() === g.console.toLowerCase())) names.push(g.console);
   names.sort((a, b) => a.localeCompare(b));
   if (filter && filter !== '__none' && !names.some(n => n.toLowerCase() === filter.toLowerCase())) filter = '';
   $('#filterWrap').hidden = !names.length;
-  $('#consoleFilter').innerHTML = `<option value="">All consoles</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')
-    + (data.games.some(g => !g.console) && names.length ? `<option value="__none">Not set</option>` : '');
+  $('#consoleFilter').innerHTML = `<option value="">All ${K().listNoun}s</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')
+    + (items.some(g => !g.console) && names.length ? `<option value="__none">Not set</option>` : '');
   $('#consoleFilter').value = filter;
   $('#filterWrap').classList.toggle('on', !!filter);
 
   let total = 0;
+  const sorts = (data.sorts && data.sorts[kind]) || (kind === 'game' ? data.sort : null) || {};
   for (const c of COLS) {
-    const games = sortGames(data.games.filter(g => g.status === c.status && matches(g)), (data.sort || {})[c.status]);
+    const games = sortGames(items.filter(g => g.status === c.status && matches(g)), sorts[c.status]);
     const col = document.querySelector(`.col[data-status="${c.status}"]`);
     const body = col.querySelector('.col-body');
-    body.innerHTML = games.length ? games.map(card).join('') : `<div class="empty">Nothing here${filter ? ' for this console' : ''} yet.</div>`;
-    const mins = games.reduce((s, g) => s + (g.minutes || 0), 0); total += mins;
+    body.innerHTML = games.length ? games.map(card).join('') : `<div class="empty">Nothing here${filter ? ` for this ${K().listNoun}` : ''} yet.</div>`;
+    const mins = kind === 'movie' ? games.reduce((s, g) => s + (g.status === 'completed' ? (g.runtime || 0) : ((g.progress && g.progress.min) || 0)), 0)
+      : kind === 'tv' ? games.reduce((s, g) => s + watchedEps(g), 0) : games.reduce((s, g) => s + (g.minutes || 0), 0);
+    total += mins;
     col.querySelector('.count').textContent = games.length;
-    col.querySelector('.col-hours').textContent = data.showHours && mins ? `${fmtHours(mins)} played` : '';
+    col.querySelector('.col-hours').textContent = !mins || (kind !== 'game' && c.status === 'incomplete') || (kind === 'game' && !data.showHours) ? ''
+      : kind === 'tv' ? plural(mins, 'episode') : kind === 'movie' ? `${fmtRuntime(mins)} watched` : `${fmtHours(mins)} played`;
     document.querySelector(`.tab[data-status="${c.status}"] .count`).textContent = games.length;
   }
-  renderStreams(data.videos);
-  const shown = data.games.filter(matches), all = data.games.length;
+  renderStreams(kind === 'game' ? data.videos : trailerList());
+  const shown = items.filter(matches), all = items.length;
   const done = shown.filter(g => g.status === 'completed').length;
-  $('#stats').innerHTML = `<span><b>${shown.length}</b>${filter ? ` of ${all}` : ''} games${filter ? ` on <b class="name">${esc(filter === '__none' ? 'no console' : filter)}</b>` : ''}</span>`
-    + `<span><b>${done}</b> finished</span>`
-    + (data.showHours && total ? `<span><b>${fmtHours(total)}</b> played</span>` : '')
+  const totalTxt = !total ? '' : kind === 'tv' ? `<span><b>${total}</b> episodes watched</span>` : kind === 'movie' ? `<span><b>${fmtHours(total)}</b> watched</span>` : data.showHours ? `<span><b>${fmtHours(total)}</b> played</span>` : '';
+  $('#stats').innerHTML = `<span><b>${shown.length}</b>${filter ? ` of ${all}` : ''} ${(filter ? all : shown.length) === 1 ? K().noun : K().nouns}${filter ? ` on <b class="name">${esc(filter === '__none' ? 'no ' + K().listNoun : filter)}</b>` : ''}</span>`
+    + `<span><b>${done}</b> ${kind === 'game' ? 'finished' : 'watched'}</span>` + totalTxt
     + `<span class="updated" title="${new Date(data.updatedAt).toLocaleString()}">Updated ${ago(data.updatedAt)}</span>`;
 }
+function trailerList() {
+  const items = mine().filter(g => g.status === 'incomplete' && g.trailer && g.trailer.key).sort((a, b) => b.addedAt - a.addedAt);
+  return { heading: 'Trailers', title: `For ${K().nouns} on the Want to Watch list`, prevLabel: 'Previous', nextLabel: 'Next',
+    items: items.map(g => ({ id: g.trailer.key, title: `${g.title}${g.year ? ' (' + g.year + ')' : ''}`, duration: '', date: null, embed: true, sub: g.console || 'Trailer', trailer: true })) };
+}
 function card(g) {
-  const hours = data.showHours ? fmtHours(g.minutes) : '';
+  const pi = progressInfo(g);
+  const hours = kindOf(g) === 'game' && data.showHours ? fmtHours(g.minutes) : '';
   const art = g.art ? `<img src="${esc(g.art)}" alt="" loading="lazy">` : `<div class="ph" style="--h:${hue(g.title)}">${esc(g.title)}</div>`;
-  return `<button type="button" class="card${g.art ? '' : ' has-ph'}${hours ? ' with-hours' : ''}" data-id="${g.id}" aria-label="${esc(g.title)}${g.console ? ', ' + esc(g.console) : ''}${hours ? ', ' + hours : ''}">
-    ${art}${g.console ? `<span class="cbadge">${esc(g.console)}</span>` : ''}
-    <div class="meta"><span class="t">${esc(g.title)}</span>${hours ? `<span class="h">${hours}</span>` : ''}</div></button>`;
+  const bottom = pi && pi.corner ? '' : pi ? `<span class="h">${esc(pi.label)}</span>${pi.pct != null ? `<span class="pbar"><i style="width:${Math.max(3, Math.min(100, pi.pct))}%"></i></span>` : ''}` : hours ? `<span class="h">${hours}</span>` : '';
+  const extra = pi ? pi.label : hours;
+  return `<button type="button" class="card${g.art ? '' : ' has-ph'}${bottom ? ' with-hours' : ''}" data-id="${g.id}" aria-label="${esc(g.title)}${g.console ? ', ' + esc(g.console) : ''}${extra ? ', ' + esc(extra) : ''}">
+    ${art}${g.console ? `<span class="cbadge">${esc(g.console)}</span>` : ''}${pi && pi.corner ? `<span class="rt">${esc(pi.label)}</span>` : ''}
+    <div class="meta"><span class="t">${esc(g.title)}</span>${bottom}</div></button>`;
 }
 document.addEventListener('click', e => {
   const c = e.target.closest('.card'); if (!c) return;
   const g = data.games.find(x => x.id === c.dataset.id); if (!g) return;
-  const col = COLS.find(x => x.status === g.status).name;
+  const k = kindOf(g), kk = KINDS.find(x => x.key === k);
+  const col = LABELS[k][g.status];
   const date = ms => new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  $('#dlgBody').innerHTML = `<div class="cover">${g.art ? `<img src="${esc(g.art)}" alt="${esc(g.title)} box art">` : `<div class="ph" style="--h:${hue(g.title)}">${esc(g.title)}</div>`}</div>
+  const rows = [];
+  if (g.console) rows.push([kk.played, esc(g.console)]);
+  if (g.year) rows.push(['Year', esc(g.year)]);
+  if (k === 'game' && data.showHours && g.minutes != null) rows.push(['Hours', fmtHours(g.minutes)]);
+  if (k === 'movie' && g.runtime) rows.push(['Runtime', fmtRuntime(g.runtime)]);
+  if (k === 'tv' && totalEps(g)) rows.push(['Episodes', `${watchedEps(g)} of ${totalEps(g)}`]);
+  if (k === 'tv' && g.progress && g.progress.s && g.status !== 'completed') rows.push(['Up to', `Season ${g.progress.s}, episode ${g.progress.e}`]);
+  if (g.completedAt) rows.push([k === 'game' ? 'Finished' : 'Watched', date(g.completedAt)]);
+  rows.push(['Added', date(g.addedAt)]);
+  const pi = progressInfo(g);
+  $('#dlgBody').innerHTML = `<div class="cover">${g.art ? `<img src="${esc(g.art)}" alt="${esc(g.title)} ${k === 'game' ? 'box art' : 'poster'}">` : `<div class="ph" style="--h:${hue(g.title)}">${esc(g.title)}</div>`}</div>
     <div><h3>${esc(g.title)}</h3><span class="pill" data-status="${g.status}">${col}</span>
-    <dl class="kv">${g.console ? `<dt>Played on</dt><dd>${esc(g.console)}</dd>` : ''}${data.showHours && g.minutes != null ? `<dt>Hours</dt><dd>${fmtHours(g.minutes)}</dd>` : ''}
-    ${g.completedAt ? `<dt>Finished</dt><dd>${date(g.completedAt)}</dd>` : ''}<dt>Added</dt><dd>${date(g.addedAt)}</dd></dl></div>`;
+    <dl class="kv">${rows.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('')}</dl>
+    ${pi && pi.pct != null ? `<div class="pmeter"><i style="width:${pi.pct}%"></i></div>` : ''}
+    ${g.trailer && g.trailer.key ? `<button type="button" class="btn trailer-btn" id="dlgTrailer">Watch trailer</button>` : ''}</div>`;
   $('#dlg').showModal();
+  const tb = $('#dlgTrailer');
+  if (tb) tb.onclick = () => { $('#dlg').close(); vsItems = [{ id: g.trailer.key, title: `${g.title} — Trailer`, embed: true, duration: '', date: null }]; vsPlay(0); };
 });
 $('#dlg').addEventListener('click', e => { if (e.target === $('#dlg')) $('#dlg').close(); });
-$('#consoleFilter').onchange = e => { filter = e.target.value; try { filter ? localStorage.setItem('gs.share.filter', filter) : localStorage.removeItem('gs.share.filter'); } catch {} render(); };
+$('#consoleFilter').onchange = e => { filter = e.target.value; try { filter ? localStorage.setItem(filterKey(), filter) : localStorage.removeItem(filterKey()); } catch {} render(); };
 
 
 // ---------- Streams carousel (YouTube playlist) ----------
@@ -360,13 +461,16 @@ function vsWhen(ms) {
 let vsItems = [], vsSig = '', vsPlaying = -1;
 try { if (localStorage.getItem('gs.streams.collapsed') === '1') document.getElementById('streams').classList.add('collapsed'); } catch {}
 function renderStreams(v) {
+  document.querySelector('#streams h2').textContent = (v && v.heading) || 'Streams';
+  $('#playerPrev').textContent = (v && v.prevLabel) || 'Newer';
+  $('#playerNext').textContent = (v && v.nextLabel) || 'Older';
   const sec = document.getElementById('streams');
   const items = (v && v.items) || [];
   sec.hidden = !items.length;
   if (!items.length) { vsItems = []; vsSig = ''; return; }
   document.getElementById('streamsCount').textContent = items.length;
   const title = (v.title || '').trim();
-  document.getElementById('streamsSub').textContent = title && title.toLowerCase() !== 'streams' ? title : '';
+  document.getElementById('streamsSub').textContent = v.heading ? title : title && title.toLowerCase() !== 'streams' ? title : '';
   document.getElementById('streamsToggle').setAttribute('aria-expanded', String(!sec.classList.contains('collapsed')));
   const sig = JSON.stringify(items.map(i => [i.id, i.title, i.duration, i.date]));
   if (sig === vsSig) return;
@@ -375,9 +479,9 @@ function renderStreams(v) {
     const isNew = it.date && Date.now() - it.date < 3 * 864e5;
     return `<button type="button" class="vcard" data-vi="${i}" aria-label="Play ${esc(it.title)}${it.duration ? ', ' + it.duration : ''}">
       <span class="vthumb"><img src="${vsThumb(it.id)}" alt="" loading="lazy" draggable="false">
-        ${isNew ? '<span class="vnew">New</span>' : ''}${it.duration ? `<span class="vdur">${esc(it.duration)}</span>` : ''}
+        ${it.trailer ? '<span class="vnew vtrailer">Trailer</span>' : isNew ? '<span class="vnew">New</span>' : ''}${it.duration ? `<span class="vdur">${esc(it.duration)}</span>` : ''}
         <span class="vplay"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span></span></span>
-      <span class="vtitle">${esc(it.title)}</span>${it.date ? `<span class="vdate">${esc(vsWhen(it.date))}</span>` : ''}</button>`;
+      <span class="vtitle">${esc(it.title)}</span>${it.date ? `<span class="vdate">${esc(vsWhen(it.date))}</span>` : it.sub ? `<span class="vdate">${esc(it.sub)}</span>` : ''}</button>`;
   }).join('');
   vsNav();
 }
